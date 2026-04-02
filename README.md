@@ -4,7 +4,6 @@ A house ticket system (think Jira, but for home). Built with React + Supabase + 
 
 > **Stack:** React · Supabase · Vercel  
 > **Cost:** $0  
-> **Setup time:** ~30 minutes
 
 ---
 
@@ -55,7 +54,51 @@ npm install @supabase/supabase-js
 
 2. Replace the contents of `src/App.jsx` with the HomeDesk component code.
 
-3. Create a new file `src/supabaseClient.js`:
+3. Clean up the CRA boilerplate — delete these files:
+
+```
+src/App.js
+src/App.css
+src/App.test.js
+src/logo.svg
+src/reportWebVitals.js
+src/setupTests.js
+src/index.css
+```
+
+4. Replace `src/index.js` with:
+
+```js
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+```
+
+5. Update `public/index.html` — remove the CRA boilerplate comments and update the title:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="description" content="HomeDesk - Home task tracker" />
+    <title>HomeDesk</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
+```
+
+6. Create a new file `src/supabaseClient.js`:
 
 ```js
 import { createClient } from '@supabase/supabase-js';
