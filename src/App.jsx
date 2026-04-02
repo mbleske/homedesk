@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
 
 const CATEGORIES = ["Home Repair", "Yard & Outdoor", "Errands & Shopping", "Finances & Bills", "Other"];
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
@@ -30,38 +31,10 @@ function generateId() {
   return "HT-" + Math.floor(Math.random() * 9000 + 1000);
 }
 
-const SAMPLE_TICKETS = [
-  {
-    id: "HT-1001",
-    title: "Fix leaking kitchen faucet",
-    category: "Home Repair",
-    priority: "High",
-    status: "Open",
-    assignee: "Mike",
-    due: "2026-04-10",
-    description: "The kitchen faucet has been dripping for a week. Need to replace the washer or call a plumber.",
-    created: "2026-04-01",
-  },
-  {
-    id: "HT-1002",
-    title: "Mow front lawn",
-    category: "Yard & Outdoor",
-    priority: "Medium",
-    status: "In Progress",
-    assignee: "Mike",
-    due: "2026-04-05",
-    description: "Grass is getting long. Also trim along the fence line.",
-    created: "2026-04-01",
-  },
-];
 
 export default function HomeTickets() {
-  const [tickets, setTickets] = useState(() => {
-    try {
-      const saved = localStorage.getItem("hometickets_v1");
-      return saved ? JSON.parse(saved) : SAMPLE_TICKETS;
-    } catch { return SAMPLE_TICKETS; }
-  });
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState("board"); // board | list
   const [showForm, setShowForm] = useState(false);
   const [editTicket, setEditTicket] = useState(null);
@@ -74,8 +47,14 @@ export default function HomeTickets() {
   });
 
   useEffect(() => {
-    try { localStorage.setItem("hometickets_v1", JSON.stringify(tickets)); } catch {}
-  }, [tickets]);
+    supabase.from("tickets").select("*").then(({ data }) => {
+      if (data) setTickets(data.map(fromDb));
+      setLoading(false);
+    });
+  }, []);
+
+  const toDb = (t) => ({ id: t.id, title: t.title, category: t.category, priority: t.priority, status: t.status, assignee: t.assignee, due_date: t.due || null, description: t.description, created_at: t.created });
+  const fromDb = (r) => ({ ...r, due: r.due_date || "", created: r.created_at });
 
   const openNew = () => {
     setForm({ title: "", category: "Home Repair", priority: "Medium", status: "Open", assignee: "Mike", due: "", description: "" });
@@ -90,27 +69,31 @@ export default function HomeTickets() {
     setDetailTicket(null);
   };
 
-  const saveTicket = () => {
+  const saveTicket = async () => {
     if (!form.title.trim()) return;
     if (editTicket) {
-      setTickets(ts => ts.map(t => t.id === editTicket.id ? { ...t, ...form } : t));
+      const updated = { ...editTicket, ...form };
+      await supabase.from("tickets").update(toDb(updated)).eq("id", editTicket.id);
+      setTickets(ts => ts.map(t => t.id === editTicket.id ? updated : t));
     } else {
-      setTickets(ts => [...ts, { ...form, id: generateId(), created: new Date().toISOString().slice(0, 10) }]);
+      const t = { ...form, id: generateId(), created: new Date().toISOString().slice(0, 10) };
+      await supabase.from("tickets").insert(toDb(t));
+      setTickets(ts => [...ts, t]);
     }
     setShowForm(false);
   };
 
-  const deleteTicket = (id) => {
+  const deleteTicket = async (id) => {
+    await supabase.from("tickets").delete().eq("id", id);
     setTickets(ts => ts.filter(t => t.id !== id));
     setDetailTicket(null);
   };
 
-  const cycleStatus = (id) => {
-    setTickets(ts => ts.map(t => {
-      if (t.id !== id) return t;
-      const idx = STATUSES.indexOf(t.status);
-      return { ...t, status: STATUSES[(idx + 1) % STATUSES.length] };
-    }));
+  const cycleStatus = async (id) => {
+    const ticket = tickets.find(t => t.id === id);
+    const newStatus = STATUSES[(STATUSES.indexOf(ticket.status) + 1) % STATUSES.length];
+    await supabase.from("tickets").update({ status: newStatus }).eq("id", id);
+    setTickets(ts => ts.map(t => t.id === id ? { ...t, status: newStatus } : t));
   };
 
   const filtered = tickets.filter(t =>
@@ -203,7 +186,12 @@ export default function HomeTickets() {
 
       {/* Main content */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>
-        {filtered.length === 0 && (
+        {loading && (
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
+            <div style={{ fontWeight: 600 }}>Loading tickets…</div>
+          </div>
+        )}
+        {!loading && filtered.length === 0 && (
           <div style={{ textAlign: "center", padding: "60px 0", color: "#94a3b8" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>✨</div>
             <div style={{ fontWeight: 600 }}>No tickets found</div>
@@ -211,7 +199,7 @@ export default function HomeTickets() {
           </div>
         )}
 
-        {view === "board" ? (
+        {!loading && view === "board" ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
             {STATUSES.map(status => {
               const cols = filtered.filter(t => t.status === status);
@@ -228,7 +216,7 @@ export default function HomeTickets() {
               );
             })}
           </div>
-        ) : (
+        ) : !loading && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {filtered.map(t => <TicketRow key={t.id} t={t} onDetail={() => setDetailTicket(t)} onCycle={() => cycleStatus(t.id)} />)}
           </div>
