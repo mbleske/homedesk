@@ -33,7 +33,63 @@ function generateId() {
 }
 
 
+const COOKIE_NAME = "homedesk_auth";
+
+function getCookie(name) {
+  return document.cookie.split("; ").find(r => r.startsWith(name + "="))?.split("=")[1] || null;
+}
+
+function setCookie(name, value, days) {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${value}; expires=${expires}; path=/`;
+}
+
+function PasswordGate({ onUnlock }) {
+  const [input, setInput] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [error, setError] = useState(false);
+
+  const submit = () => {
+    if (input === process.env.REACT_APP_SITE_PASSWORD) {
+      if (remember) setCookie(COOKIE_NAME, "1", 30);
+      onUnlock();
+    } else {
+      setError(true);
+      setInput("");
+    }
+  };
+
+  return (
+    <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", minHeight: "100vh", background: "#f8f7f4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Playfair+Display:wght@700&display=swap'); * { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
+      <div style={{ background: "white", borderRadius: 20, padding: 40, width: "100%", maxWidth: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.1)", textAlign: "center" }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>🏠</div>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: "#1a1a2e", marginBottom: 6 }}>HomeDesk</div>
+        <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 28 }}>Enter password to continue</div>
+        <input
+          type="password"
+          value={input}
+          onChange={e => { setInput(e.target.value); setError(false); }}
+          onKeyDown={e => e.key === "Enter" && submit()}
+          placeholder="Password"
+          autoFocus
+          style={{ width: "100%", padding: "10px 14px", border: `1.5px solid ${error ? "#ef5350" : "#e5e2dc"}`, borderRadius: 10, fontFamily: "inherit", fontSize: 14, background: "#fafaf8", outline: "none", marginBottom: error ? 6 : 16 }}
+        />
+        {error && <div style={{ fontSize: 12, color: "#ef5350", marginBottom: 14 }}>Incorrect password</div>}
+        <label style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", fontSize: 13, color: "#64748b", marginBottom: 20, cursor: "pointer" }}>
+          <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
+          Remember me for 30 days
+        </label>
+        <button onClick={submit} style={{ width: "100%", padding: "11px", background: "#1a1a2e", color: "white", border: "none", borderRadius: 10, fontFamily: "inherit", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+          Unlock
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function HomeTickets() {
+  const [unlocked, setUnlocked] = useState(() => getCookie(COOKIE_NAME) === "1");
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("board"); // board | list
@@ -107,6 +163,8 @@ export default function HomeTickets() {
   const openCount = tickets.filter(t => t.status === "Open").length;
   const inProgressCount = tickets.filter(t => t.status === "In Progress").length;
   const doneCount = tickets.filter(t => t.status === "Done").length;
+
+  if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />;
 
   return (
     <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", minHeight: "100vh", background: "#f8f7f4", color: "#1a1a2e" }}>

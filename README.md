@@ -103,19 +103,35 @@ root.render(<App />);
 ```js
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'YOUR_PROJECT_URL';
-const supabaseKey = 'YOUR_ANON_KEY';
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASE_KEY
+);
 ```
 
-4. Test it locally:
+7. Create `.env.local` in the project root (this file is gitignored and never committed):
+
+```
+REACT_APP_SUPABASE_URL=your_supabase_project_url
+REACT_APP_SUPABASE_KEY=your_supabase_anon_key
+REACT_APP_SITE_PASSWORD=your_site_password
+```
+
+| Variable | Where to find it |
+|---|---|
+| `REACT_APP_SUPABASE_URL` | Supabase → Project Settings → API → Project URL |
+| `REACT_APP_SUPABASE_KEY` | Supabase → Project Settings → API → anon/public key |
+| `REACT_APP_SITE_PASSWORD` | Any password you choose — required to access the app |
+
+> **Note:** CRA only exposes env vars prefixed with `REACT_APP_` to the browser. Restart `npm start` after creating or editing `.env.local`.
+
+8. Test it locally:
 
 ```bash
 npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — tickets should load and save to Supabase.
+Open [http://localhost:3000](http://localhost:3000) — you'll be prompted for your password, then tickets should load and save to Supabase.
 
 ---
 
@@ -138,6 +154,7 @@ git push
 |-----|-------|
 | `REACT_APP_SUPABASE_URL` | Your Supabase project URL |
 | `REACT_APP_SUPABASE_KEY` | Your Supabase anon key |
+| `REACT_APP_SITE_PASSWORD` | Your site password |
 
 Trigger a redeploy after adding these.
 
