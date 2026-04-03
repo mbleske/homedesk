@@ -140,7 +140,6 @@ export default function HomeTickets() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 22 }}>🏠</span>
             <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: "white", fontWeight: 700 }}>HomeDesk</span>
-            <span style={{ fontSize: 11, color: "#b5936b", fontWeight: 600, letterSpacing: 1, marginLeft: 4, marginTop: 2 }}>TICKETS</span>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button className="chip" onClick={() => setView(view === "board" ? "list" : "board")}
