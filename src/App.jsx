@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 
-const CATEGORIES = ["Home Repair", "Yard & Outdoor", "Errands & Shopping", "Finances & Bills", "Other"];
+const CATEGORIES = ["Home Repair", "Yard & Outdoor", "Errands & Shopping", "Finances & Bills", "WildBeacon", "Other"];
 const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
 const STATUSES = ["Open", "In Progress", "Done"];
 const ASSIGNEES = ["Alisa", "Mike"];
@@ -24,6 +24,7 @@ const CAT_ICONS = {
   "Yard & Outdoor": "🌿",
   "Errands & Shopping": "🛍️",
   "Finances & Bills": "💳",
+  "WildBeacon": "📡",
   Other: "📌",
 };
 
@@ -40,6 +41,7 @@ export default function HomeTickets() {
   const [editTicket, setEditTicket] = useState(null);
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterAssignee, setFilterAssignee] = useState("All");
+  const [filterCategory, setFilterCategory] = useState("All");
   const [detailTicket, setDetailTicket] = useState(null);
   const [form, setForm] = useState({
     title: "", category: "Home Repair", priority: "Medium",
@@ -98,13 +100,13 @@ export default function HomeTickets() {
 
   const filtered = tickets.filter(t =>
     (filterStatus === "All" || t.status === filterStatus) &&
-    (filterAssignee === "All" || t.assignee === filterAssignee)
+    (filterAssignee === "All" || t.assignee === filterAssignee) &&
+    (filterCategory === "All" || t.category === filterCategory)
   );
 
   const openCount = tickets.filter(t => t.status === "Open").length;
   const inProgressCount = tickets.filter(t => t.status === "In Progress").length;
   const doneCount = tickets.filter(t => t.status === "Done").length;
-  const mikeCount = tickets.filter(t => t.assignee === "Mike" && t.status !== "Done").length;
 
   return (
     <div style={{ fontFamily: "'DM Sans', 'Segoe UI', sans-serif", minHeight: "100vh", background: "#f8f7f4", color: "#1a1a2e" }}>
@@ -147,7 +149,7 @@ export default function HomeTickets() {
             </button>
             <button className="btn" onClick={openNew}
               style={{ background: "#b5936b", color: "white", padding: "8px 18px", fontSize: 13 }}>
-              + New Ticket
+              + New
             </button>
           </div>
         </div>
@@ -157,12 +159,11 @@ export default function HomeTickets() {
       <div style={{ background: "white", borderBottom: "1px solid #f0ede8" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "14px 24px", display: "flex", gap: 24, flexWrap: "wrap" }}>
           {[
-            { label: "Open", val: openCount, color: "#64748b" },
-            { label: "In Progress", val: inProgressCount, color: "#1d4ed8" },
-            { label: "Done", val: doneCount, color: "#15803d" },
-            { label: "Mike's Queue", val: mikeCount, color: "#b5936b" },
+            { label: "In Progress", val: inProgressCount, color: "#1d4ed8", onClick: () => { setFilterStatus("In Progress"); setFilterAssignee("All"); setFilterCategory("All"); } },
+            { label: "Open", val: openCount, color: "#64748b", onClick: () => { setFilterStatus("Open"); setFilterAssignee("All"); setFilterCategory("All"); } },
+            { label: "Done", val: doneCount, color: "#15803d", onClick: () => { setFilterStatus("Done"); setFilterAssignee("All"); setFilterCategory("All"); } },
           ].map(s => (
-            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div key={s.label} onClick={s.onClick} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <span style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.val}</span>
               <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>{s.label}</span>
             </div>
@@ -171,17 +172,29 @@ export default function HomeTickets() {
       </div>
 
       {/* Filters */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 24px 0", display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, letterSpacing: 0.5, alignSelf: "center", marginRight: 4 }}>FILTER:</span>
-        {["All", ...STATUSES].map(s => (
-          <button key={s} className={`chip ${filterStatus === s ? "active" : ""}`} onClick={() => setFilterStatus(s)} style={{ fontSize: 12 }}>{s}</button>
-        ))}
-        <span style={{ width: 1, background: "#e5e2dc", margin: "0 4px" }} />
-        {["All", ...ASSIGNEES].map(a => (
-          <button key={a} className={`chip ${filterAssignee === a ? "active" : ""}`} onClick={() => setFilterAssignee(a)} style={{ fontSize: 12 }}>
-            {a === "All" ? "👥 All" : a === "Mike" ? "👨 Mike" : "👩 Alisa"}
-          </button>
-        ))}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 24px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, letterSpacing: 0.5, marginRight: 4 }}>STATUS:</span>
+          {["All", ...STATUSES].map(s => (
+            <button key={s} className={`chip ${filterStatus === s ? "active" : ""}`} onClick={() => setFilterStatus(s)} style={{ fontSize: 12 }}>{s}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, letterSpacing: 0.5, marginRight: 4 }}>ASSIGNEE:</span>
+          {["All", ...ASSIGNEES].map(a => (
+            <button key={a} className={`chip ${filterAssignee === a ? "active" : ""}`} onClick={() => setFilterAssignee(a)} style={{ fontSize: 12 }}>
+              {a === "All" ? "👥 All" : a === "Mike" ? "👨 Mike" : "👩 Alisa"}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, letterSpacing: 0.5, marginRight: 4 }}>CATEGORY:</span>
+          <select className="input" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+            style={{ width: "auto", padding: "5px 32px 5px 12px", fontSize: 12, borderRadius: 99 }}>
+            <option value="All">All Categories</option>
+            {CATEGORIES.map(c => <option key={c} value={c}>{CAT_ICONS[c]} {c}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Main content */}
@@ -201,7 +214,7 @@ export default function HomeTickets() {
 
         {!loading && view === "board" ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
-            {STATUSES.map(status => {
+            {["In Progress", "Open", "Done"].map(status => {
               const cols = filtered.filter(t => t.status === status);
               return (
                 <div key={status}>
@@ -340,7 +353,7 @@ export default function HomeTickets() {
   );
 }
 
-function TicketCard({ t, onDetail, onCycle }) {
+function TicketCard({ t, onDetail }) {
   const pc = PRIORITY_COLORS[t.priority];
   const isOverdue = t.due && new Date(t.due) < new Date() && t.status !== "Done";
   return (
@@ -366,7 +379,7 @@ function TicketCard({ t, onDetail, onCycle }) {
   );
 }
 
-function TicketRow({ t, onDetail, onCycle }) {
+function TicketRow({ t, onDetail }) {
   const pc = PRIORITY_COLORS[t.priority];
   const ss = STATUS_STYLES[t.status];
   const isOverdue = t.due && new Date(t.due) < new Date() && t.status !== "Done";
