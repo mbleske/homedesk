@@ -111,7 +111,8 @@ export default function HomeTickets() {
     });
   }, []);
 
-  const toDb = (t) => ({ id: t.id, title: t.title, category: t.category, priority: t.priority, status: t.status, assignee: t.assignee, due_date: t.due || null, description: t.description, created_at: t.created });
+  const today = () => new Date().toISOString().slice(0, 10);
+  const toDb = (t) => ({ id: t.id, title: t.title, category: t.category, priority: t.priority, status: t.status, assignee: t.assignee, due_date: t.due || null, description: t.description, created_at: t.created, last_updated: t.last_updated });
   const fromDb = (r) => ({ ...r, due: r.due_date || "", created: r.created_at });
 
   const openNew = () => {
@@ -130,11 +131,11 @@ export default function HomeTickets() {
   const saveTicket = async () => {
     if (!form.title.trim()) return;
     if (editTicket) {
-      const updated = { ...editTicket, ...form };
+      const updated = { ...editTicket, ...form, last_updated: today() };
       await supabase.from("tickets").update(toDb(updated)).eq("id", editTicket.id);
       setTickets(ts => ts.map(t => t.id === editTicket.id ? updated : t));
     } else {
-      const t = { ...form, id: generateId(), created: new Date().toISOString().slice(0, 10) };
+      const t = { ...form, id: generateId(), created: today(), last_updated: today() };
       await supabase.from("tickets").insert(toDb(t));
       setTickets(ts => [...ts, t]);
     }
@@ -150,8 +151,9 @@ export default function HomeTickets() {
   const cycleStatus = async (id) => {
     const ticket = tickets.find(t => t.id === id);
     const newStatus = STATUSES[(STATUSES.indexOf(ticket.status) + 1) % STATUSES.length];
-    await supabase.from("tickets").update({ status: newStatus }).eq("id", id);
-    setTickets(ts => ts.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    const updated_at = today();
+    await supabase.from("tickets").update({ status: newStatus, last_updated: updated_at }).eq("id", id);
+    setTickets(ts => ts.map(t => t.id === id ? { ...t, status: newStatus, last_updated: updated_at } : t));
   };
 
   const filtered = tickets.filter(t =>

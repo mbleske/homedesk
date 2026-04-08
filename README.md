@@ -160,11 +160,85 @@ Trigger a redeploy after adding these.
 
 ---
 
-## Part 4: Mobile Setup (PWA)
+## Part 4: Daily Email Digest (Resend + Supabase Edge Function)
+
+### Database changes
+
+In the Supabase SQL Editor, add the `last_updated` column to your tickets table:
+
+```sql
+alter table tickets add column last_updated text;
+```
+
+### Set up Resend
+
+1. Sign up at [resend.com](https://resend.com) and create an API key.
+2. Add and verify a sending domain (or use Resend's onboarding sandbox for testing).
+3. In [supabase/functions/daily-digest/index.ts](supabase/functions/daily-digest/index.ts), update the `from` field to match your verified domain:
+   ```
+   from: "HomeDesk <digest@yourdomain.com>"
+   ```
+
+### Deploy the Edge Function
+
+1. Install the Supabase CLI if you haven't already:
+   ```bash
+   npm install -g supabase
+   ```
+
+2. Link your project:
+   ```bash
+   supabase link --project-ref your-project-ref
+   ```
+   Your project ref is in Supabase → Project Settings → General.
+
+3. Set the Edge Function secrets:
+   ```bash
+   supabase secrets set RESEND_API_KEY=your_resend_api_key
+   supabase secrets set DIGEST_TO=mike@example.com,alisa@example.com
+   ```
+   `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically by Supabase.
+
+4. Deploy the function:
+   ```bash
+   supabase functions deploy daily-digest
+   ```
+
+### Schedule it with pg_cron
+
+In the Supabase SQL Editor, enable the pg_cron extension and schedule the digest (this example sends at 7 AM UTC daily):
+
+```sql
+select cron.schedule(
+  'daily-digest',
+  '0 7 * * *',
+  $$
+  select net.http_post(
+    url := 'https://your-project-ref.supabase.co/functions/v1/daily-digest',
+    headers := '{"Authorization": "Bearer your-anon-key"}'::jsonb
+  )
+  $$
+);
+```
+
+Replace `your-project-ref` with your project ref and `your-anon-key` with your anon/public key from Project Settings → API.
+
+### What the digest includes
+
+The email groups tickets into sections:
+- **New Today** — tickets created today
+- **Updated Today** — tickets modified today (not new)
+- **Overdue** — open/in-progress tickets past their due date
+- **In Progress** — all in-progress tickets
+- **Open** — all open tickets
+
+---
+
+## Part 5: Mobile Setup (PWA)
 
 No app store needed — HomeDesk works as a Progressive Web App directly from the browser.
 
-**iPhone (Safari)**
+**iPhone (Safari)****
 1. Open the Vercel URL in Safari
 2. Tap the Share icon (box with arrow)
 3. Tap **Add to Home Screen**
