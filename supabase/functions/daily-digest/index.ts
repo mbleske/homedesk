@@ -73,12 +73,12 @@ Deno.serve(async () => {
       <p style="font-size:13px;color:#94a3b8;margin:0 0 16px;">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
       ${!hasContent
         ? `<p style="color:#94a3b8;font-size:14px;">Nothing to report — all caught up! ✨</p>`
-        : section("🆕 New (Last 24h)", "#b5936b", newTickets) +
-          section("✏️ Updated Today", "#1d4ed8", updatedTickets) +
+        : section("✅ Completed (Last 24h)", "#15803d", completedTickets) +
           section("⚠️ Overdue", "#ef5350", overdueTickets) +
           section("🔵 In Progress", "#1d4ed8", inProgressTickets) +
+          section("🆕 New (Last 24h)", "#b5936b", newTickets) +
           section("⬜ Open", "#64748b", openTickets) +
-          section("✅ Completed (Last 24h)", "#15803d", completedTickets)
+          section("✏️ Updated (Last 24h)", "#1d4ed8", updatedTickets)
       }
     </div>
   </div>
