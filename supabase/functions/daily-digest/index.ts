@@ -9,7 +9,6 @@ Deno.serve(async () => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
 
   const { data: tickets, error } = await supabase
     .from("tickets")
@@ -18,11 +17,18 @@ Deno.serve(async () => {
 
   if (error) return new Response("DB error: " + error.message, { status: 500 });
 
-  const newTickets = tickets.filter(t => t.created_at === today);
-  const updatedTickets = tickets.filter(t => t.last_updated === today && t.created_at !== today);
-  const overdueTickets = tickets.filter(t => t.due_date && t.due_date < today);
-  const openTickets = tickets.filter(t => t.status === "Open");
-  const inProgressTickets = tickets.filter(t => t.status === "In Progress");
+  const byDueDate = (a: Record<string, string>, b: Record<string, string>) => {
+    if (!a.due_date && !b.due_date) return 0;
+    if (!a.due_date) return 1;
+    if (!b.due_date) return -1;
+    return a.due_date < b.due_date ? -1 : 1;
+  };
+
+  const newTickets = tickets.filter(t => t.created_at === today).sort(byDueDate);
+  const updatedTickets = tickets.filter(t => t.last_updated === today && t.created_at !== today).sort(byDueDate);
+  const overdueTickets = tickets.filter(t => t.due_date && t.due_date < today).sort(byDueDate);
+  const openTickets = tickets.filter(t => t.status === "Open").sort(byDueDate);
+  const inProgressTickets = tickets.filter(t => t.status === "In Progress").sort(byDueDate);
 
   const fmt = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
@@ -81,7 +87,7 @@ Deno.serve(async () => {
     method: "POST",
     headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "HomeDesk <mike@bleske.com>",
+      from: "HomeDesk <support@bleske.com>",
       to: recipients,
       subject: `HomeDesk Digest — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
       html,
