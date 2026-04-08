@@ -13,8 +13,7 @@ Deno.serve(async () => {
 
   const { data: tickets, error } = await supabase
     .from("tickets")
-    .select("*")
-    .neq("status", "Done");
+    .select("*");
 
   if (error) return new Response("DB error: " + error.message, { status: 500 });
 
@@ -25,11 +24,14 @@ Deno.serve(async () => {
     return a.due_date < b.due_date ? -1 : 1;
   };
 
-  const newTickets = tickets.filter(t => t.created_at >= yesterday).sort(byDueDate);
-  const updatedTickets = tickets.filter(t => t.last_updated >= yesterday && t.created_at < yesterday).sort(byDueDate);
-  const overdueTickets = tickets.filter(t => t.due_date && t.due_date < today).sort(byDueDate);
-  const openTickets = tickets.filter(t => t.status === "Open" && t.created_at < yesterday).sort(byDueDate);
-  const inProgressTickets = tickets.filter(t => t.status === "In Progress" && t.created_at < yesterday).sort(byDueDate);
+  type Ticket = Record<string, string>;
+  const active = tickets.filter((t: Ticket) => t.status !== "Done");
+  const newTickets = active.filter((t: Ticket) => t.created_at >= yesterday).sort(byDueDate);
+  const updatedTickets = active.filter((t: Ticket) => t.last_updated >= yesterday && t.created_at < yesterday).sort(byDueDate);
+  const overdueTickets = active.filter((t: Ticket) => t.due_date && t.due_date < today).sort(byDueDate);
+  const openTickets = active.filter((t: Ticket) => t.status === "Open" && t.created_at < yesterday).sort(byDueDate);
+  const inProgressTickets = active.filter((t: Ticket) => t.status === "In Progress" && t.created_at < yesterday).sort(byDueDate);
+  const completedTickets = tickets.filter((t: Ticket) => t.status === "Done" && t.last_updated >= yesterday).sort(byDueDate);
 
   const fmt = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
@@ -55,7 +57,7 @@ Deno.serve(async () => {
       <tbody>${rows.map(ticketRow).join("")}</tbody>
     </table>`;
 
-  const hasContent = newTickets.length + updatedTickets.length + overdueTickets.length + openTickets.length + inProgressTickets.length > 0;
+  const hasContent = newTickets.length + updatedTickets.length + overdueTickets.length + openTickets.length + inProgressTickets.length + completedTickets.length > 0;
 
   const html = `
 <!DOCTYPE html>
@@ -75,7 +77,8 @@ Deno.serve(async () => {
           section("✏️ Updated Today", "#1d4ed8", updatedTickets) +
           section("⚠️ Overdue", "#ef5350", overdueTickets) +
           section("🔵 In Progress", "#1d4ed8", inProgressTickets) +
-          section("⬜ Open", "#64748b", openTickets)
+          section("⬜ Open", "#64748b", openTickets) +
+          section("✅ Completed (Last 24h)", "#15803d", completedTickets)
       }
     </div>
   </div>
