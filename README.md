@@ -34,7 +34,8 @@ create table tickets (
   assignee text,
   due_date text,
   description text,
-  created_at text
+  created_at text,
+  last_updated text
 );
 ```
 
@@ -49,7 +50,7 @@ create table tickets (
 ```bash
 npx create-react-app homedesk
 cd homedesk
-npm install @supabase/supabase-js
+npm install @supabase/supabase-js @vercel/analytics --legacy-peer-deps
 ```
 
 2. Replace the contents of `src/App.jsx` with the HomeDesk component code.
@@ -69,12 +70,17 @@ src/index.css
 4. Replace `src/index.js` with:
 
 ```js
-import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import App from './App';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(
+  <>
+    <App />
+    <Analytics />
+  </>
+);
 ```
 
 5. Update `public/index.html` — remove the CRA boilerplate comments and update the title:
@@ -86,6 +92,7 @@ root.render(<App />);
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#1a1a2e" />
     <meta name="description" content="HomeDesk - Home task tracker" />
@@ -120,7 +127,7 @@ REACT_APP_SITE_PASSWORD=your_site_password
 | Variable | Where to find it |
 |---|---|
 | `REACT_APP_SUPABASE_URL` | Supabase → Project Settings → API → Project URL |
-| `REACT_APP_SUPABASE_KEY` | Supabase → Project Settings → API → anon/public key |
+| `REACT_APP_SUPABASE_KEY` | Supabase → Project Settings → API → anon/public key (the long `eyJ...` token) |
 | `REACT_APP_SITE_PASSWORD` | Any password you choose — required to access the app |
 
 > **Note:** CRA only exposes env vars prefixed with `REACT_APP_` to the browser. Restart `npm start` after creating or editing `.env.local`.
@@ -162,28 +169,17 @@ Trigger a redeploy after adding these.
 
 ## Part 4: Daily Email Digest (Resend + Supabase Edge Function)
 
-### Database changes
-
-In the Supabase SQL Editor, add the `last_updated` column to your tickets table:
-
-```sql
-alter table tickets add column last_updated text;
-```
-
 ### Set up Resend
 
 1. Sign up at [resend.com](https://resend.com) and create an API key.
 2. Add and verify a sending domain (or use Resend's onboarding sandbox for testing).
-3. In [supabase/functions/daily-digest/index.ts](supabase/functions/daily-digest/index.ts), update the `from` field to match your verified domain:
-   ```
-   from: "HomeDesk <digest@yourdomain.com>"
-   ```
+3. In [supabase/functions/daily-digest/index.ts](supabase/functions/daily-digest/index.ts), confirm the `from` field matches your verified domain.
 
 ### Deploy the Edge Function
 
-1. Install the Supabase CLI if you haven't already:
+1. Install the Supabase CLI (use Homebrew on macOS):
    ```bash
-   npm install -g supabase
+   brew install supabase/tap/supabase
    ```
 
 2. Link your project:
@@ -204,14 +200,22 @@ alter table tickets add column last_updated text;
    supabase functions deploy daily-digest
    ```
 
+   To redeploy after changes, run the same command again.
+
 ### Schedule it with pg_cron
 
-In the Supabase SQL Editor, enable the pg_cron extension and schedule the digest (this example sends at 7 AM UTC daily):
+First, enable the required extensions in the Supabase dashboard:
+
+1. Go to **Database → Extensions**
+2. Search for `pg_cron` and toggle it on
+3. Search for `pg_net` and toggle it on
+
+Then, in the SQL Editor, schedule the digest:
 
 ```sql
 select cron.schedule(
   'daily-digest',
-  '0 7 * * *',
+  '0 14 * * *',
   $$
   select net.http_post(
     url := 'https://your-project-ref.supabase.co/functions/v1/daily-digest',
@@ -223,14 +227,22 @@ select cron.schedule(
 
 Replace `your-project-ref` with your project ref and `your-anon-key` with your anon/public key from Project Settings → API.
 
+> **Schedule note:** `0 14 * * *` runs at 7 AM PDT (summer) and 6 AM PST (winter) — it naturally follows the Pacific daylight saving shift.
+
 ### What the digest includes
 
-The email groups tickets into sections:
-- **New Today** — tickets created today
-- **Updated Today** — tickets modified today (not new)
-- **Overdue** — open/in-progress tickets past their due date
-- **In Progress** — all in-progress tickets
-- **Open** — all open tickets
+The email is sent daily and groups tickets into sections in this order:
+
+| Section | Contents |
+|---|---|
+| ✅ Completed (Last 24h) | Tickets marked Done in the last 24 hours |
+| ⚠️ Overdue | Open/in-progress tickets past their due date |
+| 🔵 In Progress | All in-progress tickets |
+| 🆕 New (Last 24h) | Tickets created in the last 24 hours |
+| ⬜ Open | All open tickets |
+| ✏️ Updated (Last 24h) | Tickets modified in the last 24 hours (excludes new) |
+
+Tickets without a due date sort to the bottom within each section.
 
 ---
 
@@ -238,7 +250,7 @@ The email groups tickets into sections:
 
 No app store needed — HomeDesk works as a Progressive Web App directly from the browser.
 
-**iPhone (Safari)****
+**iPhone (Safari)**
 1. Open the Vercel URL in Safari
 2. Tap the Share icon (box with arrow)
 3. Tap **Add to Home Screen**
@@ -258,6 +270,7 @@ No app store needed — HomeDesk works as a Progressive Web App directly from th
 |--|--|
 | 🛢️ **Database** | Supabase (free tier) |
 | 🚀 **Hosting** | Vercel (free) |
+| 📧 **Email digest** | Resend + Supabase Edge Function |
 | 📱 **Mobile** | Add to Home Screen from browser |
 | 🔁 **Sync** | Real-time across all devices |
 | 💰 **Cost** | $0 |
