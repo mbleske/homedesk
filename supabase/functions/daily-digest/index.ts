@@ -9,6 +9,7 @@ Deno.serve(async () => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
 
   const { data: tickets, error } = await supabase
     .from("tickets")
@@ -24,11 +25,11 @@ Deno.serve(async () => {
     return a.due_date < b.due_date ? -1 : 1;
   };
 
-  const newTickets = tickets.filter(t => t.created_at === today).sort(byDueDate);
-  const updatedTickets = tickets.filter(t => t.last_updated === today && t.created_at !== today).sort(byDueDate);
+  const newTickets = tickets.filter(t => t.created_at >= yesterday).sort(byDueDate);
+  const updatedTickets = tickets.filter(t => t.last_updated >= yesterday && t.created_at < yesterday).sort(byDueDate);
   const overdueTickets = tickets.filter(t => t.due_date && t.due_date < today).sort(byDueDate);
-  const openTickets = tickets.filter(t => t.status === "Open").sort(byDueDate);
-  const inProgressTickets = tickets.filter(t => t.status === "In Progress").sort(byDueDate);
+  const openTickets = tickets.filter(t => t.status === "Open" && t.created_at < yesterday).sort(byDueDate);
+  const inProgressTickets = tickets.filter(t => t.status === "In Progress" && t.created_at < yesterday).sort(byDueDate);
 
   const fmt = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
@@ -70,7 +71,7 @@ Deno.serve(async () => {
       <p style="font-size:13px;color:#94a3b8;margin:0 0 16px;">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
       ${!hasContent
         ? `<p style="color:#94a3b8;font-size:14px;">Nothing to report — all caught up! ✨</p>`
-        : section("🆕 New Today", "#b5936b", newTickets) +
+        : section("🆕 New (Last 24h)", "#b5936b", newTickets) +
           section("✏️ Updated Today", "#1d4ed8", updatedTickets) +
           section("⚠️ Overdue", "#ef5350", overdueTickets) +
           section("🔵 In Progress", "#1d4ed8", inProgressTickets) +
